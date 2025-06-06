@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DdlMappings">
+    <mapping uuid="108c0bde-c07e-4584-8b8e-042a23b0ddac" name="personas Mapping">
+      <data-sources db="e71fd1ab-98f7-4180-a46f-6ac1666f1a0e" />
+      <scope>
+        <node kind="database" negative="1" />
+      </scope>
+    </mapping>
+  </component>
+</project>

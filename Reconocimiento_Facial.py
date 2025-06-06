@@ -2,9 +2,10 @@ import sqlite3
 import face_recognition
 import numpy as np
 import json
+import os
 
 # --- Parámetro archivo SQLite ---
-DB_FILE = "personas.db"
+DB_FILE = "database/personas.db"
 
 # Umbral distancia (menor = más estricto, 0.6 es un valor típico)
 UMBRAL_DISTANCIA = 0.6
@@ -26,17 +27,31 @@ def obtener_personas_con_vectores():
     personas = []
     for row in resultados:
         try:
-            vector = np.array(json.loads(row['kp']))
-            personas.append({
-                'id': row['id_persona'],
-                'nombre': row['nombre'],
-                'apellido': row['apellido'],
-                'correo': row['correo'],
-                'foto': row['foto'],
-                'vector': vector
-            })
+            # Primer load → string que contiene lista o lista directa
+            kp_step1 = json.loads(row['kp'])
+            # Si es string, hacer segundo load
+            if isinstance(kp_step1, str):
+                vector_json = json.loads(kp_step1)
+            else:
+                vector_json = kp_step1
+
+            # Validar que sea lista
+            if isinstance(vector_json, list):
+                vector = np.array(vector_json)
+                personas.append({
+                    'id': row['id_persona'],
+                    'nombre': row['nombre'],
+                    'apellido': row['apellido'],
+                    'correo': row['correo'],
+                    'foto': row['foto'] if os.path.isfile(row['foto']) else f"ISIA/{row['foto']}",
+                    'vector': vector
+                })
+                print(f"✅ Vector OK para persona ID {row['id_persona']}")
+            else:
+                print(f"⚠ Vector inválido (no lista) para persona ID {row['id_persona']}, se ignora.")
         except Exception as e:
-            print(f"⚠ Error cargando vector de persona {row['id_persona']}: {e}")
+            print(f"❌ Error cargando vector de persona ID {row['id_persona']}: {e}")
+
     return personas
 
 # --- Extraer vector facial desde una imagen nueva ---
@@ -85,5 +100,36 @@ def probar_umbral(ruta_imagen_prueba, lista_umbral=[0.4, 0.5, 0.55, 0.6, 0.65, 0
             persona, similitud = resultado, mensaje
             print(f"Umbral {umbral:.2f}: ✅ {persona['nombre']} {persona['apellido']} con similitud {similitud*100:.2f}%")
 
-# 🔽 Ejemplo de uso:
-# probar_umbral("foto_nueva.jpg")
+# --- Depurar kp para ver qué contiene realmente ---
+def depurar_vectores_invalidos():
+    conexion = conectar_bd()
+    conexion.row_factory = sqlite3.Row
+    cursor = conexion.cursor()
+    cursor.execute("SELECT id_persona, nombre, apellido, kp FROM alumnos")
+    resultados = cursor.fetchall()
+    cursor.close()
+    conexion.close()
+
+    print("==== DEPURACIÓN DE KP ====")
+    for row in resultados:
+        print(f"\nID: {row['id_persona']}, Nombre: {row['nombre']} {row['apellido']}")
+        print(f"kp crudo en DB: {row['kp']}")
+
+        try:
+            kp_step1 = json.loads(row['kp'])
+            if isinstance(kp_step1, str):
+                vector_json = json.loads(kp_step1)
+            else:
+                vector_json = kp_step1
+
+            print(f"→ json.loads: OK → tipo: {type(vector_json)}")
+            if isinstance(vector_json, list):
+                print("✅ Es lista válida.")
+            else:
+                print("⚠ No es lista válida.")
+        except Exception as e:
+            print(f"❌ Error al hacer json.loads: {e}")
+
+# --- Para ejecutar depuración desde línea de comandos ---
+if __name__ == "__main__":
+    depurar_vectores_invalidos()
