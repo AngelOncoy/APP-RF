@@ -1,5 +1,7 @@
 fastapi
 uvicorn
+python-multipart  # para UploadFile
 face_recognition
 numpy
-pydantic
+opencv-python
+pandas

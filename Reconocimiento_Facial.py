@@ -5,7 +5,9 @@ import json
 import os
 
 # --- Parámetro archivo SQLite ---
-DB_FILE = "database/personas.db"
+import os
+DB_FILE = os.path.join(os.path.dirname(__file__), 'database', 'personas.db')
+
 
 # Umbral distancia (menor = más estricto, 0.6 es un valor típico)
 UMBRAL_DISTANCIA = 0.6
