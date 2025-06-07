@@ -1,8 +1,8 @@
+#api/endpoints.py
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse
 import os
-from .schema import PersonaRespuesta
-from Reconocimiento_Facial import buscar_persona_por_imagen
+from schemas.schema import PersonaRespuesta
+from scripts.Reconocimiento_Facial import buscar_persona_por_imagen
 
 router = APIRouter()
 
@@ -27,14 +27,14 @@ async def comparar_imagen(file: UploadFile = File(...)):
             raise HTTPException(status_code=404, detail=mensaje)
 
         # Si hubo coincidencia, construir respuesta
-        return {
-            "id": resultado['id'],
-            "nombre": resultado['nombre'],
-            "apellido": resultado['apellido'],
-            "correo": resultado['correo'],
-            "foto": resultado['foto'],
-            "similitud": mensaje * 100  # convertir a porcentaje
-        }
+        return PersonaRespuesta(
+            id=resultado['id'],
+            nombre=resultado['nombre'],
+            apellido=resultado['apellido'],
+            correo=resultado['correo'],
+            foto=resultado['foto'],
+            similitud=mensaje * 100
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

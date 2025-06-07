@@ -1,4 +1,6 @@
+#schemas/schema.py
 from pydantic import BaseModel
+
 
 class PersonaRespuesta(BaseModel):
     id: int

@@ -1,44 +1,30 @@
-# Usa imagen oficial de Python 3.11
+# Usa imagen oficial de Python slim (más ligera)
 FROM python:3.11-slim
 
-# Instala dependencias del sistema necesarias para face_recognition + dlib
+# Instala dependencias del sistema requeridas por face_recognition + numpy
 RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
+    libgl1 \
+    libglib2.0-0 \
+    libboost-all-dev \
     libopenblas-dev \
     liblapack-dev \
     libx11-dev \
-    libgtk-3-dev \
-    libboost-python-dev \
-    libboost-system-dev \
-    libboost-thread-dev \
-    libboost-filesystem-dev \
-    libboost-chrono-dev \
-    libboost-serialization-dev \
-    libjpeg-dev \
-    libpng-dev \
-    libtiff-dev \
-    libavcodec-dev \
-    libavformat-dev \
-    libswscale-dev \
-    libv4l-dev \
-    libx264-dev \
-    libx265-dev \
-    libfreetype6-dev \
-    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Establece el directorio de trabajo en /app
+# Establece el directorio de trabajo dentro del contenedor
 WORKDIR /app
 
-# Copia los archivos del proyecto al contenedor
-COPY . /app
+# Copia todos los archivos del proyecto al contenedor
+COPY . .
 
-# Instala dependencias de Python
-RUN pip install --no-cache-dir -r requirements.txt
+# Instala las dependencias de Python
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
 
-# Expone el puerto que usará FastAPI (8000)
-EXPOSE 8000
+# Expone el puerto que Cloud Run espera (8080)
+EXPOSE 8080
 
-# Comando para arrancar la app
-CMD ["uvicorn", "api.main_api:app", "--host", "0.0.0.0", "--port", "8000"]
+# Comando para arrancar FastAPI en el puerto 8080
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
