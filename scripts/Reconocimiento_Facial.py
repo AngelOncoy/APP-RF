@@ -54,7 +54,7 @@ def extraer_vector_imagen(path_imagen):
     return encodings[0]
 
 # --- Buscar persona por comparación facial ---
-def buscar_persona_por_imagen(ruta_imagen, umbral_distancia=UMBRAL_DISTANCIA):
+def buscar_persona_por_imagen(ruta_imagen, umbral_distancia=UMBRAL_DISTANCIA, umbral_similitud_minima=0.20):
     try:
         vector_entrada = extraer_vector_imagen(ruta_imagen)
     except Exception as e:
@@ -68,14 +68,22 @@ def buscar_persona_por_imagen(ruta_imagen, umbral_distancia=UMBRAL_DISTANCIA):
         if distancia < umbral_distancia:
             mejores_coincidencias.append((persona, distancia))
 
+    # Si no hubo candidatos en el umbral de distancia
     if not mejores_coincidencias:
         return None, "No se encontró ninguna persona con similitud suficiente."
 
+    # Ordenar por menor distancia
     mejores_coincidencias.sort(key=lambda x: x[1])
     persona_mejor, distancia_mejor = mejores_coincidencias[0]
 
+    # Calcular similitud (inversa de distancia)
     similitud = max(0, 1 - distancia_mejor / 0.6)
 
+    # Si la similitud es menor que el umbral mínimo → NO aceptar como reconocimiento válido
+    if similitud < umbral_similitud_minima:
+        return None, "No se encontró ninguna persona con similitud suficiente.", similitud
+
+    # Si pasa ambos umbrales → devolver resultado
     return persona_mejor, similitud
 
 # --- Probar varios umbrales (opcional para calibración) ---
