@@ -1,63 +1,46 @@
-import pandas as pd
+# db_connector.py
 import mysql.connector
-from mysql.connector import errorcode
+import json
 
-config = {
+# --- Configuración de la conexión ---
+DB_CONFIG = {
+    'host': 'localhost',
     'user': 'root',
     'password': '123456',
-    'host': 'localhost',
     'database': 'rf_db',
     'raise_on_warnings': True
 }
 
-input_excel = "../data/dataset.xlsx"
+# --- Función para conectar a la base de datos ---
+def conectar_bd():
+    return mysql.connector.connect(**DB_CONFIG)
 
-df = pd.read_excel(input_excel)
+# --- Función para insertar o actualizar una persona ---
+def insertar_persona(nombre, apellido, correo, foto, vector_kp):
+    try:
+        conexion = conectar_bd()
+        cursor = conexion.cursor()
 
-try:
-    cnx = mysql.connector.connect(**config)
-    cursor = cnx.cursor()
+        # Convertimos el vector a JSON string
+        kp_json = json.dumps(vector_kp.tolist()) if vector_kp is not None else None
 
-    insert_update_query = """
-    INSERT INTO alumnos (nombre, apellido, correo, foto, kp)
-    VALUES (%s, %s, %s, %s, %s) AS new
-    ON DUPLICATE KEY UPDATE
-        nombre = new.nombre,
-        apellido = new.apellido,
-        foto = new.foto,
-        kp = new.kp;
-    """
+        insert_update_query = """
+        INSERT INTO alumnos (nombre, apellido, correo, foto, kp)
+        VALUES (%s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            nombre = VALUES(nombre),
+            apellido = VALUES(apellido),
+            foto = VALUES(foto),
+            kp = VALUES(kp);
+        """
 
-    for idx, row in df.iterrows():
-        correo = row.get('Correo') if 'Correo' in df.columns else None
+        cursor.execute(insert_update_query, (nombre, apellido, correo, foto, kp_json))
+        conexion.commit()
+        print(f"✅ Persona '{nombre} {apellido}' insertada/actualizada correctamente.")
 
-        if pd.isna(correo) or pd.isna(row.get('Nombre')) or pd.isna(row.get('Apellido')) or pd.isna(row.get('Foto')):
-            print(f"Fila {idx} ignorada por datos incompletos o sin correo.")
-            continue
+    except mysql.connector.Error as err:
+        print(f"❌ Error MySQL: {err}")
 
-        embedding = row.get('Kp') if 'Kp' in df.columns else None
-        if pd.isna(embedding):
-            embedding = None
-
-        cursor.execute(insert_update_query, (
-            row['Nombre'],
-            row['Apellido'],
-            correo,
-            row['Foto'],
-            embedding
-        ))
-
-    cnx.commit()
-    print("Datos insertados o actualizados correctamente en la tabla alumnos.")
-
-except mysql.connector.Error as err:
-    if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-        print("Error: Usuario o contraseña incorrectos.")
-    elif err.errno == errorcode.ER_BAD_DB_ERROR:
-        print("Error: Base de datos no existe.")
-    else:
-        print(f"Error MySQL: {err}")
-
-finally:
-    cursor.close()
-    cnx.close()
+    finally:
+        cursor.close()
+        conexion.close()
