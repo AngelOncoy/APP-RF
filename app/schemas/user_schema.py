@@ -27,3 +27,16 @@ class UserListItem(BaseModel):
 
 class UserListResponse(BaseModel):
     users: List[UserListItem]
+
+class UserUpdateResponse(BaseModel):
+    message: str
+
+class UserDeleteResponse(BaseModel):
+    message: str
+
+class UserProfileResponse(BaseModel):
+    user_id: str
+    name: str
+    last_name: str
+    email: str
+    requisitioned: bool
