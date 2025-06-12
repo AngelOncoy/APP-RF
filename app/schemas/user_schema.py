@@ -12,3 +12,6 @@ class CompareResponse(BaseModel):
     match: bool
     similarity: float
     user_data: Optional[UserResponse]
+
+class UserRegisterResponse(BaseModel):
+    message: str
