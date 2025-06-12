@@ -99,3 +99,33 @@ def get_all_users_with_features():
         close_connection(connection)
 
     return users
+
+
+def get_all_users_basic():
+    """
+    Recupera todos los usuarios sin imagen ni features.
+
+    Returns:
+    - List of (user_id, name, last_name, email, requisitioned)
+    """
+    connection = get_connection()
+    users = []
+
+    if connection:
+        cursor = connection.cursor()
+        query = "SELECT user_id, name, last_name, email, requisitioned FROM users"
+        cursor.execute(query)
+
+        results = cursor.fetchall()
+        for row in results:
+            user_id = row[0]
+            name = row[1]
+            last_name = row[2]
+            email = row[3]
+            requisitioned = bool(row[4])
+            users.append((user_id, name, last_name, email, requisitioned))
+
+        cursor.close()
+        close_connection(connection)
+
+    return users

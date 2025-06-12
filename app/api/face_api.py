@@ -89,3 +89,32 @@ async def registrar_usuario(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al registrar usuario: {e}")
+
+
+from app.services.db_operations import get_all_users_basic
+from app.schemas.user_schema import UserListResponse, UserListItem
+
+
+@router.get("/listar_usuarios", response_model=UserListResponse)
+async def listar_usuarios():
+    """
+    Endpoint para listar todos los usuarios.
+    """
+    try:
+        users_db = get_all_users_basic()
+
+        users_list = [
+            UserListItem(
+                user_id=u[0],
+                name=u[1],
+                last_name=u[2],
+                email=u[3],
+                requisitioned=u[4]
+            )
+            for u in users_db
+        ]
+
+        return UserListResponse(users=users_list)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al listar usuarios: {e}")
