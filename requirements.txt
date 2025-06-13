@@ -3,4 +3,6 @@ pydantic~=2.11.5
 mysql-connector-python~=9.3.0
 numpy~=2.2.4
 opencv-python~=4.11.0.86
-pandas~=2.2.3
+pandas~=2.3.0
+uvicorn~=0.34.3
+mysql~=0.0.3
