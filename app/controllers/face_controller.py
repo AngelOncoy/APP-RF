@@ -1,49 +1,48 @@
-import numpy as np
+import json
 from app.services.face_recognition import extract_face_features, cosine_similarity
-from app.services.db_operations import get_all_users_with_features
+from app.services.db_operations    import get_all_users_with_features
 
-def compare_external_image(image_path, similarity_threshold=0.85):
-    """
-    Compara una imagen externa contra todos los usuarios de la base de datos.
+def compare_external_image(image_path, similarity_threshold=0.20):
+    external_json = extract_face_features(image_path)   # str
+    external_vec  = json.loads(external_json)           # list[float]
 
-    Returns:
-    - dict con resultado: {'match': True/False, 'user_data': {...} o None}
-    """
-    # 1️⃣ Extraer features de la imagen externa
-    external_features = extract_face_features(image_path)
+    users = get_all_users_with_features()               # cada user trae list[float]
 
-    # 2️⃣ Obtener todos los usuarios de la DB
-    users = get_all_users_with_features()
+    best_sim, best_user = -1.0, None
+    for uid, name, last, email, req, vec_db in users:
+        sim = cosine_similarity(external_vec, vec_db)   # listas → OK
+        if sim > best_sim:
+            best_sim, best_user = sim, (uid, name, last, email, req)
 
-    # 3️⃣ Comparar con cada uno
-    best_similarity = -1
-    best_user = None
-
-    for user in users:
-        user_id, name, last_name, email, requisitioned, db_features = user
-        sim = cosine_similarity(external_features, db_features)
-
-        if sim > best_similarity:
-            best_similarity = sim
-            best_user = user
-
-    # 4️⃣ Decidir si es coincidencia o no
-    if best_similarity >= similarity_threshold:
-        user_id, name, last_name, email, requisitioned, _ = best_user
+    if best_sim >= similarity_threshold and best_user:
+        uid, name, last, email, req = best_user
         return {
-            'match': True,
-            'similarity': best_similarity,
-            'user_data': {
-                'user_id': user_id,
-                'name': name,
-                'last_name': last_name,
-                'email': email,
-                'requisitioned': requisitioned
-            }
+            "match": True,
+            "similarity": best_sim,
+            "user_data": {
+                "user_id": uid,
+                "name": name,
+                "last_name": last,
+                "email": email,
+                "requisitioned": req,
+            },
         }
-    else:
-        return {
-            'match': False,
-            'similarity': best_similarity,
-            'user_data': None
-        }
+    return {"match": False, "similarity": best_sim, "user_data": None}
+
+def compare_external_image_verbose(image_path, top_k=5):
+    import json
+    from operator import itemgetter
+    external_vec = json.loads(extract_face_features(image_path))
+
+    candidates = []
+    for user in get_all_users_with_features():
+        uid, name, last, _, _, vec_db = user
+        sim = cosine_similarity(external_vec, vec_db)
+        candidates.append((sim, f"{uid}  |  {name} {last}"))
+
+    # ordenar por similitud desc.
+    top = sorted(candidates, key=itemgetter(0), reverse=True)[:top_k]
+
+    print("\n─ Top coincidencias ─")
+    for rank, (sim, label) in enumerate(top, 1):
+        print(f"{rank}.  {label:<30}  sim = {sim:.4f}")

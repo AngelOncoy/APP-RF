@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 
 from app.database.mysql_connector import get_connection, close_connection
@@ -28,7 +30,7 @@ def save_user_to_db(user):
             user.email,
             user.requisitioned,
             user.image,
-            user.features.tobytes()
+            user.features
         )
 
         cursor.execute(query, user_data)
@@ -61,8 +63,10 @@ def get_user_from_db(user_id):
 
         if result:
             # Crear el objeto User a partir de los datos recuperados
-            user = User(result[0], result[1], result[2], result[3], result[4], result[5],
-                        np.frombuffer(result[6], dtype=np.float32))
+            user = User(
+                result[0], result[1], result[2], result[3], result[4], result[5],
+                json.loads(result[6])  # ← list[float] recuperada del JSON
+            )
 
         cursor.close()
         close_connection(connection)
@@ -92,7 +96,7 @@ def get_all_users_with_features():
             last_name = row[2]
             email = row[3]
             requisitioned = bool(row[4])
-            features = np.frombuffer(row[5], dtype=np.float32)
+            features = json.loads(row[5])
             users.append((user_id, name, last_name, email, requisitioned, features))
 
         cursor.close()
@@ -176,7 +180,7 @@ def update_user(user_id, name, last_name, email, requisitioned, image_bytes=None
                 SET name = %s, last_name = %s, email = %s, requisitioned = %s, image = %s, features = %s
                 WHERE user_id = %s
             """
-            params = (name, last_name, email, requisitioned, image_bytes, features.tobytes(), user_id)
+            params = (name, last_name, email, requisitioned, image_bytes, features, user_id)
 
         else:
             query = """
