@@ -1,110 +1,28 @@
-import cv2, json, numpy as np
-from skimage.feature import local_binary_pattern, hog
-from numpy.linalg import norm
+import json, numpy as np
 
+# ⟡  nuevo import  ⟡
+from app.services.embedder_core import align_face, embed_face
 
-# ==================  PARÁMETROS EXPERIMENTALES  ==================
-CLAHE_CLIP     = 3.5        # 2.0 – 4.0
-CLAHE_TILE     = (4, 4)     # (8,8)  o  (4,4)
-
-HOG_ORIENT     = 11         # 8 – 12
-HOG_CELL       = (5, 5)     # (6,6)  (5,5)  (4,4)
-HOG_BLOCK      = (2, 2)     # (2,2)  o  (3,3)
-
-USE_LBP_R2     = True       # activar segundo LBP (P=16,R=2)
-USE_HU         = True       # activar Hu Moments
-# ================================================================
-
-
-# --- Detectores Haar (rostro y ojos) -----------------------------
-FACE_CASCADE = cv2.CascadeClassifier(
-    cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-EYE_CASCADE  = cv2.CascadeClassifier(
-    cv2.data.haarcascades + "haarcascade_eye.xml")
-
-# ---------- Alineado ocular -------------------------------------
-def _align_face(face_gray: np.ndarray) -> np.ndarray:
-    eyes = EYE_CASCADE.detectMultiScale(face_gray, 1.1, 5)
-    if len(eyes) < 2:
-        return cv2.resize(face_gray, (100, 100))
-
-    eyes = sorted(eyes, key=lambda e: e[2]*e[3], reverse=True)[:2]
-    (x1, y1, w1, h1), (x2, y2, w2, h2) = eyes
-    cx1, cy1 = x1 + w1 / 2, y1 + h1 / 2
-    cx2, cy2 = x2 + w2 / 2, y2 + h2 / 2
-    if cx2 < cx1:  # asegurar izquierda-derecha
-        cx1, cy1, cx2, cy2 = cx2, cy2, cx1, cy1
-
-    angle = np.degrees(np.arctan2(cy2 - cy1, cx2 - cx1))
-    M = cv2.getRotationMatrix2D((face_gray.shape[1] / 2,
-                                 face_gray.shape[0] / 2),
-                                angle, 1.0)
-    rot = cv2.warpAffine(face_gray, M,
-                         (face_gray.shape[1], face_gray.shape[0]))
-    return cv2.resize(rot, (100, 100))
-
-# ---------- Función principal -----------------------------------
 def extract_face_features(image_path: str) -> str:
     """
-    Devuelve un vector de características facial en formato JSON string,
-    compuesto por:
-      • HOG (parametrizable)
-      • LBP R=1 (oblig.)
-      • LBP R=2 (opcional)
-      • Hu Moments (opcional)
-    El vector va normalizado a norma-1.
+    Lee la imagen, alinea el rostro, obtiene el embedding 128-D y
+    devuelve un JSON listo para la base de datos.
     """
-    img = cv2.imread(image_path)
-    if img is None:
-        raise ValueError(f"No se lee imagen: {image_path}")
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    import cv2
+    bgr = cv2.imread(image_path)
+    if bgr is None:
+        raise ValueError("No se pudo leer la imagen")
+    gray = align_face(bgr)
+    if gray is None:
+        raise ValueError("No se detectó rostro en la imagen")
+    vec = embed_face(gray)                  # ndarray (128,)
+    return json.dumps(vec.tolist())         # ➜ str JSON
 
-    faces = FACE_CASCADE.detectMultiScale(gray, 1.1, 5)
-    if len(faces) == 0:
-        raise ValueError("Sin rostro detectado")
-
-    x, y, w, h = faces[0]
-    face_roi = gray[y:y + h, x:x + w]
-
-    # --- Pre-procesado: CLAHE + alineado ocular ---
-    clahe = cv2.createCLAHE(clipLimit=CLAHE_CLIP, tileGridSize=CLAHE_TILE)
-    face_eq = clahe.apply(face_roi)
-    face = _align_face(face_eq)  # 100×100
-
-    # --- HOG ------------------------------------------------------
-    hog_vec = hog(face,
-                  orientations=HOG_ORIENT,
-                  pixels_per_cell=HOG_CELL,
-                  cells_per_block=HOG_BLOCK,
-                  block_norm="L2-Hys",
-                  feature_vector=True)
-
-    # --- LBP ------------------------------------------------------
-    def lbp_hist(P, R):
-        lbp = local_binary_pattern(face, P, R, "uniform")
-        hist, _ = np.histogram(lbp.ravel(),
-                               bins=np.arange(0, P + 3),
-                               range=(0, P + 2))
-        hist = hist.astype("float") / (hist.sum() + 1e-7)
-        return hist
-
-    lbp_r1 = lbp_hist(8, 1)
-    lbp_r2 = lbp_hist(16, 2) if USE_LBP_R2 else np.array([])
-
-    # --- Hu Moments ----------------------------------------------
-    hu = cv2.HuMoments(cv2.moments(face)).flatten() if USE_HU else np.array([])
-
-    # --- Vector final + normalización ----------------------------
-    vec = np.concatenate([hog_vec, lbp_r1, lbp_r2, hu]).astype(np.float32)
-    vec /= (norm(vec) + 1e-7)
-
-    return json.dumps(vec.tolist())
-
-
-# ---------- Métrica ----------------------------------------------
+# tu función original ya vale: =============================
 def cosine_similarity(vec_a, vec_b):
+    """
+    Recibe dos listas de floats (o ndarrays) y devuelve la similitud coseno.
+    """
     a = np.asarray(vec_a, dtype=np.float32)
     b = np.asarray(vec_b, dtype=np.float32)
-    if norm(a) == 0 or norm(b) == 0:
-        return 0.0
-    return float(np.dot(a, b) / (norm(a) * norm(b)))
+    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))

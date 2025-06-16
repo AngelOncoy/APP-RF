@@ -2,7 +2,7 @@ import json
 from app.services.face_recognition import extract_face_features, cosine_similarity
 from app.services.db_operations    import get_all_users_with_features
 
-def compare_external_image(image_path, similarity_threshold=0.20):
+def compare_external_image(image_path, similarity_threshold=0.70):
     external_json = extract_face_features(image_path)   # str
     external_vec  = json.loads(external_json)           # list[float]
 
