@@ -1,24 +1,40 @@
 import json
-from app.services.face_recognition import extract_face_features, cosine_similarity
-from app.services.db_operations    import get_all_users_with_features
+from app.services.face_recognition import extract_face_features
+from app.services.db_operations import get_all_users_with_features
+import numpy as np
 
-def compare_external_image(image_path, similarity_threshold=0.20):
-    external_json = extract_face_features(image_path)   # str
-    external_vec  = json.loads(external_json)           # list[float]
+# ---------------------------
+# Métrica: Distancia Euclidiana
+# ---------------------------
+def euclidean_distance(vec_a, vec_b):
+    a = np.asarray(vec_a, dtype=np.float32)
+    b = np.asarray(vec_b, dtype=np.float32)
+    return float(np.linalg.norm(a - b))
 
-    users = get_all_users_with_features()               # cada user trae list[float]
 
-    best_sim, best_user = -1.0, None
+# ---------------------------
+# Comparar imagen externa
+# ---------------------------
+def compare_external_image(image_path, distance_threshold=0.55):
+    external_json = extract_face_features(image_path)
+    external_vec = json.loads(external_json)
+
+    users = get_all_users_with_features()
+
+    best_dist = float("inf")
+    best_user = None
+
     for uid, name, last, email, req, vec_db in users:
-        sim = cosine_similarity(external_vec, vec_db)   # listas → OK
-        if sim > best_sim:
-            best_sim, best_user = sim, (uid, name, last, email, req)
+        dist = euclidean_distance(external_vec, vec_db)
+        if dist < best_dist:
+            best_dist = dist
+            best_user = (uid, name, last, email, req)
 
-    if best_sim >= similarity_threshold and best_user:
+    if best_dist <= distance_threshold and best_user:
         uid, name, last, email, req = best_user
         return {
             "match": True,
-            "similarity": best_sim,
+            "similarity": 1 - best_dist,  # Para mantener compatibilidad (puedes cambiar esto)
             "user_data": {
                 "user_id": uid,
                 "name": name,
@@ -27,22 +43,24 @@ def compare_external_image(image_path, similarity_threshold=0.20):
                 "requisitioned": req,
             },
         }
-    return {"match": False, "similarity": best_sim, "user_data": None}
 
+    return {"match": False, "similarity": 1 - best_dist, "user_data": None}
+
+
+# ---------------------------
+# Comparación detallada (Top-k)
+# ---------------------------
 def compare_external_image_verbose(image_path, top_k=5):
-    import json
-    from operator import itemgetter
     external_vec = json.loads(extract_face_features(image_path))
-
     candidates = []
+
     for user in get_all_users_with_features():
         uid, name, last, _, _, vec_db = user
-        sim = cosine_similarity(external_vec, vec_db)
-        candidates.append((sim, f"{uid}  |  {name} {last}"))
+        dist = euclidean_distance(external_vec, vec_db)
+        candidates.append((dist, f"{uid}  |  {name} {last}"))
 
-    # ordenar por similitud desc.
-    top = sorted(candidates, key=itemgetter(0), reverse=True)[:top_k]
+    top = sorted(candidates, key=lambda x: x[0])[:top_k]
 
     print("\n─ Top coincidencias ─")
-    for rank, (sim, label) in enumerate(top, 1):
-        print(f"{rank}.  {label:<30}  sim = {sim:.4f}")
+    for rank, (dist, label) in enumerate(top, 1):
+        print(f"{rank}.  {label:<30}  dist = {dist:.4f}")
