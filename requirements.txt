@@ -8,3 +8,8 @@ uvicorn~=0.34.3
 python-multipart~=0.0.5
 
 scikit-image~=0.25.2
+torch~=2.7.1
+pillow~=11.2.1
+torchvision~=0.22.1
+matplotlib~=3.10.3
+scikit-learn~=1.7.0

@@ -1,7 +1,5 @@
 import json
 
-import numpy as np
-
 from app.database.mysql_connector import get_connection, close_connection
 from app.models.user import User
 

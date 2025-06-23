@@ -5,7 +5,7 @@ from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 import numpy as np
 
-from app.services.face_recognition import extract_face_features, euclidean_distance, FACE_CASCADE
+from app.services.face_recognition import extract_face_features, euclidean_distance
 from app.services.db_operations import get_all_users_with_features, get_user_image
 
 DISTANCE_THRESHOLD = 0.45

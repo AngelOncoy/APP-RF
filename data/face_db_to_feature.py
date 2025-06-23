@@ -1,30 +1,21 @@
-# rellenar_features_from_db_v2.py
-"""
-Versión para modelo Siamese V2
----------------------------------
-• Carga el modelo `siamese_face_modelV2.pth`
-• Para cada usuario en la BD:
-   - reconstruye imagen desde bytes
-   - extrae vector con modelo V2 (embedding)
-   - lo guarda como JSON en la BD
-"""
-
 import json
+import os
 from PIL import Image
 import cv2
 import torch
 import numpy as np
-
 from torchvision import transforms
+
 from app.database.mysql_connector import get_connection, close_connection
-from app.utils.siamese_loader import load_siamese_model
+from app.utils.siamese_loader import get_siamese_model
 
-# --- Configuración
-DEVICE = "cpu"  # o "cuda" si estás en GPU
-MODEL_PATH = "../app/utils/siamese_face_modelV2.pth"
-THRESHOLD_PATH = "../app/utils/optimal_thresholdV2.json"
+# ---------------------- CONFIG ----------------------
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# --- Transformaciones para el modelo
+# Modelo cargado desde singleton
+model, _ = get_siamese_model(device=DEVICE)
+
+# ---------------------- TRANSFORM ----------------------
 transform = transforms.Compose([
     transforms.Grayscale(),               # Convertir a 1 canal
     transforms.Resize((100, 100)),
@@ -32,9 +23,7 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.5], std=[0.5])
 ])
 
-# --- Cargar modelo y umbral
-model, _ = load_siamese_model(MODEL_PATH, THRESHOLD_PATH, device=DEVICE)
-
+# ---------------------- FUNCIONES ----------------------
 def preprocess_and_embed(image_bytes):
     nparr = np.frombuffer(image_bytes, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -51,16 +40,16 @@ def preprocess_and_embed(image_bytes):
     x, y, w, h = faces[0]
     face = img[y:y + h, x:x + w]
 
-    # Convertir a RGB primero (por seguridad) y luego a PIL
     face_rgb = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
     pil_img = Image.fromarray(face_rgb)
-
     face_tensor = transform(pil_img).unsqueeze(0).to(DEVICE)
 
     with torch.no_grad():
-        embedding = model.get_embedding(face_tensor).cpu().numpy().flatten()
+        # ⚠️ Acceder al embedding_net directamente
+        embedding = model.embedding_net(face_tensor).cpu().numpy().flatten()
         return json.dumps(embedding.tolist())
 
+# ---------------------- PROCESO PRINCIPAL ----------------------
 def regenerate_features_with_model():
     conn = get_connection()
     if not conn:

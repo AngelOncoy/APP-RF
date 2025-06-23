@@ -3,7 +3,6 @@ from fastapi.responses import Response
 import tempfile
 import shutil
 
-from app.controllers.face_controller import compare_external_image
 from app.models.user import User
 from app.schemas.user_schema import (
     CompareResponse,
