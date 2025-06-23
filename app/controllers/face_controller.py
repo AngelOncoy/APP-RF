@@ -1,24 +1,23 @@
 import json
-from app.services.face_recognition import extract_face_features
-from app.services.db_operations import get_all_users_with_features
 import numpy as np
+from app.services.face_recognition import extract_face_features, euclidean_distance
+from app.services.db_operations import get_all_users_with_features
+from app.utils.siamese_loader import get_siamese_model
+import torch
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model, threshold = get_siamese_model(device=device)
+
 
 # ---------------------------
-# Métrica: Distancia Euclidiana
+# Comparar imagen externa (Siamese Model)
 # ---------------------------
-def euclidean_distance(vec_a, vec_b):
-    a = np.asarray(vec_a, dtype=np.float32)
-    b = np.asarray(vec_b, dtype=np.float32)
-    return float(np.linalg.norm(a - b))
-
-
-# ---------------------------
-# Comparar imagen externa
-# ---------------------------
-def compare_external_image(image_path, distance_threshold=0.55):
+def compare_external_image(image_path):
+    # 1. Extraer embedding desde la imagen externa
     external_json = extract_face_features(image_path)
     external_vec = json.loads(external_json)
 
+    # 2. Recuperar embeddings de la BD
     users = get_all_users_with_features()
 
     best_dist = float("inf")
@@ -30,11 +29,13 @@ def compare_external_image(image_path, distance_threshold=0.55):
             best_dist = dist
             best_user = (uid, name, last, email, req)
 
-    if best_dist <= distance_threshold and best_user:
+    # 3. Umbral desde modelo cargado
+    from app.utils.siamese_loader import _threshold  # accede directamente al umbral cargado
+    if best_dist <= _threshold and best_user:
         uid, name, last, email, req = best_user
         return {
             "match": True,
-            "similarity": 1 - best_dist,  # Para mantener compatibilidad (puedes cambiar esto)
+            "similarity": 1 - best_dist,  # opcional, puedes retornar solo la distancia si prefieres
             "user_data": {
                 "user_id": uid,
                 "name": name,
@@ -44,7 +45,11 @@ def compare_external_image(image_path, distance_threshold=0.55):
             },
         }
 
-    return {"match": False, "similarity": 1 - best_dist, "user_data": None}
+    return {
+        "match": False,
+        "similarity": 1 - best_dist,
+        "user_data": None
+    }
 
 
 # ---------------------------

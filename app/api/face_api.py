@@ -48,7 +48,7 @@ async def comparar_rostro(file: UploadFile = File(...)):
             temp_image_path = temp_file.name
 
         # Umbral de distancia puede ajustarse dinámicamente si quieres
-        result = compare_external_image(temp_image_path, distance_threshold=0.55)
+        result = compare_external_image(temp_image_path)
 
         if result['match']:
             user = result['user_data']
