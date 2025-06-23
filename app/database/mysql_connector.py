@@ -5,7 +5,7 @@ from mysql.connector import Error
 def get_connection():
     """
     Obtiene la conexión a la base de datos MySQL en Railway.
-
+"""
     try:
         # Configuración de conexión usando el MYSQL_PUBLIC_URL de Railway
         connection = mysql.connector.connect(
@@ -22,22 +22,7 @@ def get_connection():
     except Error as e:
         print(f"Error de conexión: {e}")
         return None
-    """
 
-    try:
-        # Configuración de conexión usando el MYSQL_local
-        connection = mysql.connector.connect(
-            host="127.0.0.1",
-            user="root",
-            password="123456",
-            database="rf_db"
-        )
-
-        if connection.is_connected():
-            return connection
-    except Error as e:
-        print(f"Error de conexión: {e}")
-        return None
 
 def close_connection(connection):
     """
