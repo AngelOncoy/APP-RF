@@ -9,11 +9,11 @@ def get_connection():
     try:
         # Configuración de conexión usando el MYSQL_PUBLIC_URL de Railway
         connection = mysql.connector.connect(
-            host="crossover.proxy.rlwy.net",  # Host proporcionado por Railway
-            user="root",  # Usuario proporcionado por Railway
-            password="XWlocoFTcvsjYhEWLePLYNCqFtjGywBt",  # Contraseña proporcionada por Railway
-            database="railway",  # Nombre de la base de datos en Railway
-            port=28279  # Puerto proporcionado por Railway
+            host="gondola.proxy.rlwy.net",  # Host externo (Railway)
+            user="root",  # Usuario
+            password="EneGckizvvanyMXiZtHvrsfSDqvtmfRI",  # Contraseña
+            database="railway",  # Base de datos
+            port=42075
         )
 
         if connection.is_connected():
