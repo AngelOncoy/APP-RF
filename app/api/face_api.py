@@ -3,7 +3,6 @@ from fastapi.responses import Response
 import tempfile
 import shutil
 
-from app.controllers.face_controller import compare_external_image
 from app.models.user import User
 from app.schemas.user_schema import (
     CompareResponse,
@@ -40,10 +39,14 @@ async def health():
 async def comparar_rostro(file: UploadFile = File(...)):
     print("POST /comparar llamado")
     try:
+        import tempfile, shutil
+        from app.controllers.face_controller import compare_external_image
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_file:
             shutil.copyfileobj(file.file, temp_file)
             temp_image_path = temp_file.name
 
+        # Umbral de distancia puede ajustarse dinámicamente si quieres
         result = compare_external_image(temp_image_path)
 
         if result['match']:
